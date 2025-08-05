@@ -76,9 +76,9 @@ class AlgoStrategy(gamelib.AlgoCore):
         # First, place basic defenses
         self.build_defences(game_state)
         # Now build reactive defenses based on where the enemy scored
-        self.build_reactive_defense(game_state)
-
-        game_state.attempt_spawn(SCOUT, [24, 10], 999)
+        # self.build_reactive_defense(game_state) erm stop doing that
+        if (game_state.turn_number % 3 == 0):
+            game_state.attempt_spawn(SCOUT, [24, 10], 999)
         return; # for now, don't do anything complicated
         # If the turn is less than 5, stall with interceptors and wait to see enemy's base
         if game_state.turn_number < 5:
@@ -114,7 +114,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         # Place turrets that attack enemy units
         turret_locations = [
     # init upgrade
-    [2, 13], [25, 12], 
+    [2, 13], [25, 13], 
     
     # horizontal
     [3, 13],
@@ -131,23 +131,50 @@ class AlgoStrategy(gamelib.AlgoCore):
 
     # 5. Cluster around (25, 13) 
     [24, 12], [24, 13], [24, 14],
- [25, 13], [25, 14],
+    [25, 13], [25, 14],
     [26, 12], [26, 13], [26, 14], [27, 13]
 ]
         # attempt_spawn will try to spawn units if we have resources, and will check if a blocking unit is already there
         game_state.attempt_spawn(TURRET, turret_locations)
-        
+        blockage_locations = [
+            [0, 13], [1, 13]
+        ]
+        if (game_state.turn_number % 3 != 0 and game_state.turn_number % 3 != 2):
+            game_state.attempt_spawn(WALL, blockage_locations)
+            game_state.attempt_upgrade(blockage_locations)
+        else:
+            game_state.attempt_remove(blockage_locations)
         # Place walls in front of turrets to soak up damage for them
         # upgrade walls so they soak more damage
         support_locations = [
-            [3, 12]
+            [2, 11], [3, 10], [4, 9], [5, 8], [6, 7], [7, 6], [8, 5], [9, 4]
         ]
-        game_state.attempt_spawn(SUPPORT, support_locations)
-        game_state.attempt_upgrade(support_locations)
+        for location in support_locations:
+            game_state.attempt_spawn(SUPPORT, location)
+            game_state.attempt_upgrade(location)
         turret_upgrade_locations = [
-            [2, 13], [25, 12]
+            [2, 13], [25, 13]
         ]
         game_state.attempt_upgrade(turret_upgrade_locations)
+        turret_update_order = [
+            [24, 13], [25, 13], [26, 13], [3, 13],
+            [24, 12], [24, 14],
+            [26, 12], [26, 14], [27, 13],
+            [4, 12], [5, 11], [6, 10], [7, 9], [8, 8], [9, 7],
+
+            # 3. Horizontal to (19, 7)
+            [10, 7], [11, 7], [12, 7], [13, 7], [14, 7],
+            [15, 7], [16, 7], [17, 7], [18, 7], [19, 7],
+
+            # 4. Diagonal up-right to (25, 13)
+            [20, 8], [21, 9], [22, 10], [23, 11], [24, 12], [25, 13],
+        ]
+        for location in turret_update_order:
+            if (game_state.get_resource(SP) >= 15):
+                # Attempt to upgrade the turret at the location
+                game_state.attempt_upgrade(location)
+            else:
+                break
 
     def build_reactive_defense(self, game_state):
         """
