@@ -62,7 +62,9 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.build_defences(game_state)
 
         # Spam scout placement
-        game_state.attempt_spawn(SCOUT, [4, 9], 100)
+        if game_state.turn_number % 3 == 0:
+            spawn = random.choice([[4, 9], [23, 9]])
+            game_state.attempt_spawn(SCOUT, spawn, 100)
 
     def build_defences(self, game_state):
         """
