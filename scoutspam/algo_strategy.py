@@ -132,7 +132,7 @@ class AlgoStrategy(gamelib.AlgoCore):
     # 5. Cluster around (25, 13) 
     [24, 12], [24, 13], [24, 14],
  [25, 13], [25, 14],
-    [26, 12], [26, 13], [26, 14]
+    [26, 12], [26, 13], [26, 14], [27, 13]
 ]
         # attempt_spawn will try to spawn units if we have resources, and will check if a blocking unit is already there
         game_state.attempt_spawn(TURRET, turret_locations)
