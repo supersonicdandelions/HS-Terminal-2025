@@ -4,6 +4,7 @@ import math
 import warnings
 from sys import maxsize
 import json
+import random
 
 class AlgoStrategy(gamelib.AlgoCore):
     def __init__(self):
@@ -62,7 +63,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.build_defences(game_state)
 
         # Spam scout placement
-        if game_state.turn_number % 3 == 0:
+        if game_state.turn_number % 2 == 0:
             spawn = random.choice([[4, 9], [23, 9]])
             game_state.attempt_spawn(SCOUT, spawn, 100)
 
@@ -87,7 +88,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         #
 
         # Place supports
-        support_locations = [[2, 11], [25, 11], [12, 13], [13, 13], [14, 13], [15, 13]]
+        support_locations = [[2, 11], [25, 11], [12, 12], [13, 12], [14, 12], [15, 12], [12, 11], [13, 11], [14, 11], [15, 11]]
         game_state.attempt_spawn(SUPPORT, support_locations)
 
         # Upgrade units in order of importance
@@ -177,4 +178,3 @@ class AlgoStrategy(gamelib.AlgoCore):
 if __name__ == "__main__":
     algo = AlgoStrategy()
     algo.start()
-
