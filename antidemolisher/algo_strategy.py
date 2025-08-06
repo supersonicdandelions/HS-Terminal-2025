@@ -13,6 +13,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         random.seed(seed)
         gamelib.debug_write('Random seed: {}'.format(seed))
 
+    cnt = {(13, 12): 0, (14, 12): 0, (12, 12): 0, (15, 12): 0}
 
     def on_game_start(self, config):
         """
@@ -62,16 +63,14 @@ class AlgoStrategy(gamelib.AlgoCore):
         """
         # First, place basic defenses
 
-        cnt = {(13, 12) : 0, (14, 12) : 0, (12, 12) : 0, (15, 12): 0}
-
-        self.build_defences(game_state, cnt)
+        self.build_defences(game_state)
 
         # Spam scout placement
         if game_state.turn_number % 2 == 0:
             spawn = random.choice([[4, 9], [23, 9]])
             game_state.attempt_spawn(SCOUT, spawn, 100)
 
-    def build_defences(self, game_state, cnt):
+    def build_defences(self, game_state):
         """
         Build basic defenses using hardcoded locations.
         Remember to defend corners and avoid placing units in the front where enemy demolishers can attack them.
@@ -89,8 +88,6 @@ class AlgoStrategy(gamelib.AlgoCore):
         # attempt_spawn will try to spawn units if we have resources, and will check if a blocking unit is already there
         game_state.attempt_spawn(TURRET, turret_locations)
 
-        #
-
         # Place supports
         support_locations = [[2, 11], [25, 11]]
         game_state.attempt_spawn(SUPPORT, support_locations)
@@ -99,13 +96,13 @@ class AlgoStrategy(gamelib.AlgoCore):
         lower_support_locations = [[13, 11], [14, 11], [12, 11], [15, 11], [11, 11], [16, 11], [10, 11], [17, 11]]
 
         for i in upper_support_locations:
-            if (game_state.contains_stationary_unit(i)): cnt[(i[0], i[1])] += 1
+            if not game_state.contains_stationary_unit(i): self.cnt[(i[0], i[1])] += 1
 
         tot = 0
 
-        for i in upper_support_locations: tot += cnt[(i[0], i[1])]
+        for i in upper_support_locations: tot += self.cnt[(i[0], i[1])]
 
-        if tot <= 10:
+        if tot <= 12:
             game_state.attempt_spawn(SUPPORT, upper_support_locations)
             game_state.attempt_upgrade(upper_support_locations)
 
@@ -199,4 +196,3 @@ class AlgoStrategy(gamelib.AlgoCore):
 if __name__ == "__main__":
     algo = AlgoStrategy()
     algo.start()
-
