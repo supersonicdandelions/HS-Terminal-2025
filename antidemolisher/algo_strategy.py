@@ -112,7 +112,11 @@ class AlgoStrategy(gamelib.AlgoCore):
 
         game_state.attempt_spawn(TURRET, canal_turrets)
 
+        for i in range(6, 22):
+            game_state.attempt_spawn(TURRET, [i, 9])
         
+        for i in range(6, 22):
+            game_state.attempt_spawn(TURRET, [i, 8])
     
     def score_responses(self, game_state):
         scores = ([4, 9], [23, 9])
