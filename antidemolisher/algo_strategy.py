@@ -13,6 +13,8 @@ class AlgoStrategy(gamelib.AlgoCore):
         random.seed(seed)
         gamelib.debug_write('Random seed: {}'.format(seed))
 
+    spawn = random.choice([[4, 9], [23, 9]])
+
     cnt = {(13, 12): 0, (14, 12): 0, (12, 12): 0, (15, 12): 0}
 
     def on_game_start(self, config):
@@ -67,8 +69,7 @@ class AlgoStrategy(gamelib.AlgoCore):
 
         # Spam scout placement
         if game_state.turn_number % 3 == 1:
-            spawn = random.choice([[4, 9], [23, 9]])
-            game_state.attempt_spawn(SCOUT, spawn, 100)
+            game_state.attempt_spawn(SCOUT, self.spawn, 100)
 
     def build_defences(self, game_state):
         """
@@ -84,38 +85,35 @@ class AlgoStrategy(gamelib.AlgoCore):
         turret_locations = [[0, 13], [27, 13], [1, 13], [26, 13], [1, 12], [26, 12], [2, 12], [25, 12], [3, 10],
                             [24, 10], [5, 10], [22, 10], [6, 10], [21, 10], [7, 10], [8, 10], [9, 10], [10, 10],
                             [11, 10], [12, 10], [13, 10], [14, 10], [15, 10], [16, 10], [17, 10], [18, 10], [19, 10],
-                            [20, 10]]
+                            [20, 10], [2, 11], [25, 11], [5, 9], [5, 8], [22, 9], [22, 8], [2, 12], [25, 12], [11, 10], [14, 10]]
         # attempt_spawn will try to spawn units if we have resources, and will check if a blocking unit is already there
         game_state.attempt_spawn(TURRET, turret_locations)
 
         # Place supports
-        support_locations = [[2, 11], [25, 11]]
-        game_state.attempt_spawn(SUPPORT, support_locations)
+        if game_state.turn_number % 3 == 1:
+            upper_support_locations = [[13, 12], [14, 12], [12, 12], [15, 12]]
+            lower_support_locations = [[13, 11], [14, 11], [12, 11], [15, 11], [11, 11], [16, 11], [10, 11], [17, 11]]
 
-        upper_support_locations = [[13, 12], [14, 12], [12, 12], [15, 12]]
-        lower_support_locations = [[13, 11], [14, 11], [12, 11], [15, 11], [11, 11], [16, 11], [10, 11], [17, 11]]
+            for i in upper_support_locations:
+                if not game_state.contains_stationary_unit(i): self.cnt[(i[0], i[1])] += 1
 
-        for i in upper_support_locations:
-            if not game_state.contains_stationary_unit(i): self.cnt[(i[0], i[1])] += 1
+            tot = 0
 
-        tot = 0
+            for i in upper_support_locations: tot += self.cnt[(i[0], i[1])]
 
-        for i in upper_support_locations: tot += self.cnt[(i[0], i[1])]
+            if tot <= 10:
+                game_state.attempt_spawn(SUPPORT, upper_support_locations)
+                game_state.attempt_upgrade(upper_support_locations)
 
-        if tot <= 12:
-            game_state.attempt_spawn(SUPPORT, upper_support_locations)
-            game_state.attempt_upgrade(upper_support_locations)
+            game_state.attempt_spawn(SUPPORT, lower_support_locations)
+            game_state.attempt_upgrade(lower_support_locations)
 
-        game_state.attempt_spawn(SUPPORT, lower_support_locations)
-        game_state.attempt_upgrade(lower_support_locations)
+        canal_turrets = [[2, 13], [25, 13], [3, 13], [24, 13], [4, 13], [23, 13], [5, 13], [22, 13], [6, 13], [21, 13], [7, 13], [20, 13], [8, 13], [19, 13], [9, 13], [18, 13], [3, 12], [24, 12], [4, 12], [23, 12], [5, 12], [22, 12], [6, 12], [21, 12], [7, 12], [20, 12], [8, 12], [19, 12]]
 
-        # Upgrade units in order of importance
-        game_state.attempt_upgrade(support_locations)
+        game_state.attempt_spawn(TURRET, canal_turrets)
 
-        important_turret_locations = [[2, 12], [25, 12], [11, 10], [14, 10]]
-        game_state.attempt_upgrade(important_turret_locations)
-        game_state.attempt_upgrade(turret_locations)
-
+        
+    
     def score_responses(self, game_state):
         scores = ([4, 9], [23, 9])
         recent = [0, 0]
@@ -147,8 +145,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             damage = 0
             for path_location in path:
                 # Get number of enemy turrets that can attack each location and multiply by turret damage
-                damage += len(game_state.get_attackers(path_location, 0)) * gamelib.GameUnit(TURRET,
-                                                                                             game_state.config).damage_i
+                damage += len(game_state.get_attackers(path_location, 0)) * gamelib.GameUnit(TURRET, game_state.config).damage_i
             damages.append(damage)
 
         # Now just return the location that takes the least damage
