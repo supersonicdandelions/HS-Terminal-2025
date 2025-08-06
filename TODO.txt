@@ -1,0 +1,7 @@
+TODO:
+
+change upgrade order and make it attempt 7
+replace damaged turrets and walls to keep the defense strong
+idk what else for now
+maybe stagger scout placement?
+use supports better?
