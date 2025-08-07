@@ -1,8 +1,8 @@
 TODO:
 
-change upgrade order
 idk what else for now
 maybe stagger scout placement?
 use supports better?
 upgrade adaptively based on where units are placed or what turrets we need to replace
 fix wall health upgrading
+account for impasibility
