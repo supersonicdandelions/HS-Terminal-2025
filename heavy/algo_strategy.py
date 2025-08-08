@@ -161,10 +161,11 @@ class AlgoStrategy(gamelib.AlgoCore):
             if unit1[0].unit_type == WALL:
                 hasWall = True
                 defaultValue = 5
-        if not self.isWallTactic and numSpawnable <= 16:
+        initSpawn = up_front + defaultValue
+        if not self.isWallTactic and numSpawnable - initSpawn < 10.99:
             self.determine_interval(game_state, up_front, behindTurrets, hasWall, False)
             return
-        initSpawn = up_front + defaultValue
+        
         if self.isStaggerTurret:
             initSpawn = 3
         if self.isWallTactic or self.isStaggerTurret:
@@ -202,15 +203,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         wall_locations = [
             [0, 13], [27, 13]
         ]
-        for location in wall_locations:
-            if not game_state.contains_stationary_unit(location):
-                game_state.attempt_spawn(WALL, location)
-                game_state.attempt_upgrade(location)
-                continue
-            game_state.attempt_upgrade(location)
-            unit = game_state.game_map[location]
-            if unit[0].health < 90 and unit[0].health != 60:
-                game_state.attempt_remove(location)
+
         # game_state.turn_number % self.interval != 0 and 
         blockage_locations = [
             [1, 13]
@@ -242,7 +235,15 @@ class AlgoStrategy(gamelib.AlgoCore):
                     game_state.attempt_spawn(TURRET, [location[0], location[1] - 1])
                     temp.append([location[0], location[1] - 1])
         self.turret_locations = temp.copy()
-        
+        for location in wall_locations:
+            if not game_state.contains_stationary_unit(location):
+                game_state.attempt_spawn(WALL, location)
+                game_state.attempt_upgrade(location)
+                continue
+            game_state.attempt_upgrade(location)
+            unit = game_state.game_map[location]
+            if unit[0].health < 90 and unit[0].health != 60:
+                game_state.attempt_remove(location)
         # if has_turret([25, 13]):
         #     if random.random() < 0.05:
         #         game_state.attempt_remove([26, 13])
