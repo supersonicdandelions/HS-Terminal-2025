@@ -1,0 +1,15 @@
+{
+	"folders": [
+		{
+			"name": "HS-Terminal-2025",
+			"path": ".."
+		},
+		{
+			"name": "scoutspam",
+			"path": "../../C1GamesStarterKit-master/C1GamesStarterKit-master/scoutspam"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "HS-Terminal-2025"
+	}
+}
