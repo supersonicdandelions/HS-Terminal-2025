@@ -164,12 +164,13 @@ class AlgoStrategy(gamelib.AlgoCore):
                 hasWall = True
                 defaultValue = 5
         initSpawn = up_front + defaultValue
+        if self.isStaggerTurret:
+            initSpawn = 3 + up_front*2 + behindTurrets
         if not self.isWallTactic and numSpawnable - initSpawn < 10.99:
             self.determine_interval(game_state, up_front, behindTurrets, hasWall, False)
             return
         
         if self.isStaggerTurret:
-            initSpawn = 3
             game_state.attempt_spawn(SCOUT, [3, 10], initSpawn)
             game_state.attempt_spawn(SCOUT, [14, 0], 999)
         elif self.isWallTactic:
@@ -259,6 +260,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             location = support_locations[i]
             game_state.attempt_spawn(SUPPORT, location)
             game_state.attempt_upgrade(location)
+        #TODO: change turret upgrade locations based on attack pattern
         turret_upgrade_locations = [
             [24, 13], [3, 13], [25, 12], [24, 12], [2, 13]
         ]
