@@ -168,7 +168,9 @@ class AlgoStrategy(gamelib.AlgoCore):
         
         if self.isStaggerTurret:
             initSpawn = 3
-        if self.isWallTactic or self.isStaggerTurret:
+            game_state.attempt_spawn(SCOUT, [3, 10], initSpawn)
+            game_state.attempt_spawn(SCOUT, [4, 10], 999)
+        elif self.isWallTactic:
             game_state.attempt_spawn(SCOUT, [12, 1], initSpawn)
             game_state.attempt_spawn(SCOUT, [14, 0], 999)
         else:
