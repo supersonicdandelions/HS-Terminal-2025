@@ -126,9 +126,11 @@ class AlgoStrategy(gamelib.AlgoCore):
         if (not self.isWallTactic and hasWall):
             minMP = 16.99
         if game_state.enemy_health <= 15:
-            minMP = game_state.enemy_health + 2
+            minMP = math.max(minMP, game_state.enemy_health + 2)
             if hasWall:
-                minMP += 4 + up_front
+                minMP = math.max(minMP, 4 + up_front + game_state.enemy_health + 2)
+        if self.isStaggerTurret:
+            minMP = max(minMP, 15 + 2 * up_front + (behindTurrets + 1) // 2)
         while (futureMP < minMP):
             futureMP *= 0.75
             futureMP += points_per_turn
@@ -208,7 +210,7 @@ class AlgoStrategy(gamelib.AlgoCore):
 
         # game_state.turn_number % self.interval != 0 and 
         blockage_locations = [
-            [1, 13]
+            [1, 13], [1, 12], [2, 12]
         ]
         if ((self.time % self.interval != 0 and self.time % self.interval != self.interval - 1) or game_state.turn_number == 0):
             game_state.attempt_spawn(TURRET, blockage_locations)
