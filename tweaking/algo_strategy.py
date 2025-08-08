@@ -126,9 +126,9 @@ class AlgoStrategy(gamelib.AlgoCore):
         if (not self.isWallTactic and hasWall):
             minMP = 16.99
         if game_state.enemy_health <= 15:
-            minMP = math.max(minMP, game_state.enemy_health + 2)
+            minMP = max(minMP, game_state.enemy_health + 2)
             if hasWall:
-                minMP = math.max(minMP, 4 + up_front + game_state.enemy_health + 2)
+                minMP = max(minMP, 4 + up_front + game_state.enemy_health + 2)
         if self.isStaggerTurret:
             minMP = max(minMP, 15 + 2 * up_front + (behindTurrets + 1) // 2)
         while (futureMP < minMP):
