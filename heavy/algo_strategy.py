@@ -122,7 +122,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         futureMP = game_state.get_resource(MP) % 1
         if not spent:
             futureMP = game_state.get_resource(MP)
-        minMP = min(19.99, 14.99 + up_front*2 + (behindTurrets + 1) // 2)
+        minMP = min(19.99, 14.99 + math.floor(up_front*1.5) + (behindTurrets + 1) // 2)
         if (not self.isWallTactic and hasWall):
             minMP = 16.99
         if game_state.enemy_health <= 15:
