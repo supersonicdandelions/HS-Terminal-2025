@@ -301,6 +301,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             
             if location == [1, 14]:
                 self.isWallTactic = True
+                self.isStaggerTurret = False
         for spawn in spawns:
             location = spawn[0]
             unit_type = spawn[1]
