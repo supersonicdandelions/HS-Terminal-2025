@@ -95,11 +95,15 @@ class AlgoStrategy(gamelib.AlgoCore):
         if True: #game_state.turn_number % 2 == 1:
             # To simplify we will just check sending them from back left and right
             go=False
-            scout_spawn_location_options = [[1,14], [2,14], [4,14], [5,14], [7,14],
-                                            [9,14], [11,14], [13,14],
-                                            [14,14], [16,14], [18,14],
-                                            [20,14], [22,14], [23,14], [25,14],
-                                            [26,14]]
+            scout_spawn_location_options = [[13,14],[14,14],
+                                            [11,14],  [16,14],
+                                            [9,14],  [18,14],
+                                            [7,14],[20,14],
+                                            [5,14],  [22,14],
+                                            [4,14],  [23,14],
+                                            [2,14],  [25,14],
+                                            [1,14],[26,14]
+            ]
             best_location,left,leastDamage,blocked = self.least_damage_spawn_location(game_state, scout_spawn_location_options)
 
             if game_state.project_future_MP(1,0)>=17 and not dont_spawn:
