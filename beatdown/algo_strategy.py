@@ -48,12 +48,15 @@ class AlgoStrategy(gamelib.AlgoCore):
         SP = 0
         # This is a good place to do initial setup
         self.scored_on_locations = []
-        self.time = 0
         self.last_enemy_hp = 30
-        self.interval = 4
         self.sinceDamage = 0
         self.isWallTactic = False
         self.isStaggerTurret = False
+        self.goalMP = 9999
+        self.leftHit = False
+        self.rightHit = False
+        self.hit = False
+
         self.turret_locations = []
         for x in range(2, 7):
             self.turret_locations.append([x, 13])
@@ -66,6 +69,11 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.turret_locations.append([24, 13])
         self.turret_locations.append([25, 13])
         self.turret_locations.append([26, 13])
+
+        self.hasWall = False
+        self.up_front = 0
+        self.behindTurrets = 0
+
         
 
 
@@ -82,14 +90,11 @@ class AlgoStrategy(gamelib.AlgoCore):
         game_state = gamelib.GameState(self.config, turn_state)
         
         gamelib.debug_write('Performing turn {} of your custom algo strategy'.format(game_state.turn_number))
-        # game_state.suppress_warnings(True)  #Comment or remove this line to enable warnings.
+        game_state.suppress_warnings(True)  #Comment or remove this line to enable warnings.
 
         self.starter_strategy(game_state)
 
         game_state.submit_turn()
-        # if (game_state.enemy_health >= self.last_enemy_hp and self.time == 0):
-        #     self.interval += 1
-        self.time += 1
         if (game_state.enemy_health == self.last_enemy_hp):
             self.sinceDamage += 1
         else:
@@ -112,68 +117,80 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.build_defences(game_state)
         # Now build reactive defenses based on where the enemy scored
         # self.build_reactive_defense(game_state) erm stop doing that
-        if (self.time % self.interval == 0) and game_state.turn_number > 0:
+        if game_state.get_resource(MP) >= self.goalMP and not game_state.contains_stationary_unit([1, 13]):
             self.decide_tower(game_state)
 
-    def determine_interval(self, game_state, up_front, behindTurrets, hasWall, spent=True):
-        self.time = 0
-        points_per_turn = 5 + game_state.turn_number//10
-        rounds = 0
-        futureMP = game_state.get_resource(MP) % 1
-        if not spent:
-            futureMP = game_state.get_resource(MP)
-        minMP = min(19.99, 14.99 + up_front*2 + (behindTurrets + 1) // 2)
-        if (not self.isWallTactic and hasWall):
-            minMP = 16.99
-        if game_state.enemy_health <= 15:
-            minMP = game_state.enemy_health + 2
-            if hasWall:
-                minMP += 4 + up_front
-        while (futureMP < minMP):
-            futureMP *= 0.75
-            futureMP += points_per_turn
-            rounds += 1
-            points_per_turn = 5 + (game_state.turn_number + rounds)//10
-            futureMP = round(futureMP*10) / 10
-        self.interval = max(1, rounds)
-    def decide_tower(self, game_state):
-        numSpawnable = int(game_state.get_resource(MP));
-        hasWall = False
-        # check for upgraded turrets from the enemy
-        behindTurrets = 0
-        up_front = 0
-        defaultValue = 3
+    def calculate_attack_parameters(self, game_state):
+        """Calculate and store attack parameters as instance variables"""
+        numSpawnable = int(game_state.get_resource(MP))
+        self.hasWall = False
+        self.behindTurrets = 0
+        self.up_front = 0
+        self.defaultValue = 3
+        
         if game_state.turn_number <= 5:
-            defaultValue = 4
+            self.defaultValue = 4
         if numSpawnable <= 15.99:
-            defaultValue = 4
+            self.defaultValue = 4
+            
+        # Check for upgraded turrets from the enemy
         for x in range(0, 5):
             for y in range(14, 16):
                 if game_state.contains_stationary_unit([x, y]):
                     unit = game_state.game_map[[x, y]]
                     if unit[0].unit_type == TURRET and unit[0].upgraded:
                         if y == 14:
-                            up_front += 1
+                            self.up_front += 1
                         else:
-                            behindTurrets += 1
+                            self.behindTurrets += 1
+                            
         if game_state.contains_stationary_unit([0, 14]):
             unit1 = game_state.game_map[[0, 14]]
             if unit1[0].unit_type == WALL:
-                hasWall = True
-                defaultValue = 5
-        if not self.isWallTactic and numSpawnable <= 16:
-            self.determine_interval(game_state, up_front, behindTurrets, hasWall, False)
-            return
-        initSpawn = up_front + defaultValue
+                self.hasWall = True
+                self.defaultValue = 5
+
+    def determine_interval(self, game_state, spent=True):
+        minMP = min(19.99, 8.99 + self.defaultValue)
+        if (not self.isWallTactic and self.hasWall):
+            minMP = 16.99
+        if game_state.enemy_health <= 15:
+            minMP = max(minMP, game_state.enemy_health + 2 + self.defaultValue)
+        else:
+            minMP = max(minMP, math.ceil(game_state.enemy_health / 2) + 2 + self.defaultValue)
         if self.isStaggerTurret:
-            initSpawn = 3
-        if self.isWallTactic or self.isStaggerTurret:
+            minMP = max(minMP, 15 + 2 * self.up_front + (self.behindTurrets + 1) // 2)
+        if minMP > 20:
+            minMP = self.defaultValue + 12
+        self.goalMP = minMP
+        
+    def decide_tower(self, game_state):
+        numSpawnable = int(game_state.get_resource(MP))
+        
+        # Calculate attack parameters
+        self.calculate_attack_parameters(game_state)
+        
+        initSpawn = self.up_front + self.defaultValue
+        if self.isStaggerTurret:
+            initSpawn = 3 + self.up_front*2 + self.behindTurrets
+        if not self.isWallTactic and not self.isStaggerTurret:
+            self.defaultValue = 0 # one rush
+        if not self.isWallTactic and numSpawnable - initSpawn < 10.99:
+            self.determine_interval(game_state, False)
+            return
+        if game_state.enemy_health <= 15 and numSpawnable - initSpawn < game_state.enemy_health + 2:
+            self.determine_interval(game_state, False)
+            return
+        if self.isStaggerTurret:
+            game_state.attempt_spawn(SCOUT, [3, 10], initSpawn)
+            game_state.attempt_spawn(SCOUT, [14, 0], 999)
+        elif self.isWallTactic:
             game_state.attempt_spawn(SCOUT, [12, 1], initSpawn)
             game_state.attempt_spawn(SCOUT, [14, 0], 999)
         else:
             game_state.attempt_spawn(SCOUT, [14, 0], 999)
 
-        self.determine_interval(game_state, up_front, behindTurrets, hasWall)
+        self.determine_interval(game_state)
 
 
     def build_defences(self, game_state):
@@ -199,28 +216,25 @@ class AlgoStrategy(gamelib.AlgoCore):
                     if unit.unit_type == TURRET and unit.player_index == 0:  # our turret
                         return True
             return False
+        
+        self.calculate_attack_parameters(game_state)
+
+        if game_state.turn_number >= 2:
+            self.determine_interval(game_state)
         wall_locations = [
             [0, 13], [27, 13]
         ]
-        for location in wall_locations:
-            if not game_state.contains_stationary_unit(location):
-                game_state.attempt_spawn(WALL, location)
-                game_state.attempt_upgrade(location)
-                continue
-            game_state.attempt_upgrade(location)
-            unit = game_state.game_map[location]
-            if unit[0].health < 90 and unit[0].health != 60:
-                game_state.attempt_remove(location)
+
         # game_state.turn_number % self.interval != 0 and 
         blockage_locations = [
-            [1, 13]
+            [1, 13], [1, 12], [2, 12]
         ]
-        if ((self.time % self.interval != 0 and self.time % self.interval != self.interval - 1) or game_state.turn_number == 0):
+        if (game_state.project_future_MP() < self.goalMP):
             game_state.attempt_spawn(TURRET, blockage_locations)
         else:
             game_state.attempt_remove(blockage_locations)
         support_locations = [
-            [10, 9], [6, 10], [6, 11], [6, 12],
+            [6, 12], [10, 9], [6, 10], [6, 11], 
             [7, 10], [7, 11],
             [10, 10],
             [11, 10], [11, 11],
@@ -242,7 +256,15 @@ class AlgoStrategy(gamelib.AlgoCore):
                     game_state.attempt_spawn(TURRET, [location[0], location[1] - 1])
                     temp.append([location[0], location[1] - 1])
         self.turret_locations = temp.copy()
-        
+        for location in wall_locations:
+            if not game_state.contains_stationary_unit(location):
+                game_state.attempt_spawn(WALL, location)
+                game_state.attempt_upgrade(location)
+                continue
+            game_state.attempt_upgrade(location)
+            unit = game_state.game_map[location]
+            if unit[0].health < 90 and unit[0].health != 60:
+                game_state.attempt_remove(location)
         # if has_turret([25, 13]):
         #     if random.random() < 0.05:
         #         game_state.attempt_remove([26, 13])
@@ -254,10 +276,16 @@ class AlgoStrategy(gamelib.AlgoCore):
             location = support_locations[i]
             game_state.attempt_spawn(SUPPORT, location)
             game_state.attempt_upgrade(location)
-        turret_upgrade_locations = [
-            [24, 13], [3, 13], [25, 12], [24, 12], [2, 13]
-        ]
-        game_state.attempt_upgrade(turret_upgrade_locations)
+        left_turret = [[3, 13], [2, 13]]
+        right_turret = [[24, 13], [25, 12], [24, 12]]
+        if not self.hit or (self.leftHit and self.rightHit):
+            game_state.attempt_upgrade(left_turret)
+            game_state.attempt_upgrade(right_turret)
+        if self.leftHit:
+            game_state.attempt_upgrade(left_turret)
+        if self.rightHit:
+            game_state.attempt_upgrade(right_turret)
+        
 
 
         
@@ -275,7 +303,10 @@ class AlgoStrategy(gamelib.AlgoCore):
             if (game_state.get_resource(SP) >= 8):
                 # Attempt to upgrade the support at the location
                 game_state.attempt_spawn(SUPPORT, [location[0], location[1]])
-                game_state.attempt_upgrade(location)
+                if game_state.contains_stationary_unit(location):
+                    unit = game_state.game_map[location]
+                    if unit[0].unit_type == SUPPORT:
+                        game_state.attempt_upgrade(location)
             else:
                 break
         
@@ -288,6 +319,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         """
 
         state = json.loads(turn_string)
+        
 
         # Check if anything is being built/spawned on (1, 14)
         events = state["events"]
@@ -300,25 +332,13 @@ class AlgoStrategy(gamelib.AlgoCore):
             
             if location == [1, 14]:
                 self.isWallTactic = True
+                self.isStaggerTurret = False
         for spawn in spawns:
             location = spawn[0]
             unit_type = spawn[1]
             if location == [2, 14] and not self.isWallTactic:
                 self.isStaggerTurret = True
-        return
         # Let's record at what position we get scored on
-        # Check if opponent placed any units
-        state = json.loads(turn_string)
-        events = state["events"]
-        spawns = events.get("spawn", [])
-        for spawn in spawns:
-            location = spawn[0]
-            unit_type = spawn[1]
-            unit_owner_self = True if spawn[3] == 1 else False
-            if not unit_owner_self:
-                gamelib.debug_write("Opponent placed {} at: {}".format(unit_type, location))
-        state = json.loads(turn_string)
-        events = state["events"]
         breaches = events["breach"]
         for breach in breaches:
             location = breach[0]
@@ -326,9 +346,11 @@ class AlgoStrategy(gamelib.AlgoCore):
             # When parsing the frame data directly, 
             # 1 is integer for yourself, 2 is opponent (StarterKit code uses 0, 1 as player_index instead)
             if not unit_owner_self:
-                gamelib.debug_write("Got scored on at: {}".format(location))
-                self.scored_on_locations.append(location)
-                gamelib.debug_write("All locations: {}".format(self.scored_on_locations))
+                self.hit = True
+                if location[0] <= 13:
+                    self.leftHit = True
+                else:
+                    self.rightHit = True
 
 
 if __name__ == "__main__":
