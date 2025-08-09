@@ -95,10 +95,10 @@ class AlgoStrategy(gamelib.AlgoCore):
         if True: #game_state.turn_number % 2 == 1:
             # To simplify we will just check sending them from back left and right
             go=False
-            scout_spawn_location_options = [[1,14], [2,14], [4,14], [5,14], [7,14],
+            scout_spawn_location_options = [[1,14], [2,14], [3,14], [4,14], [5,14], [7,14],
                                             [9,14], [11,14], [13,14],
                                             [14,14], [16,14], [18,14],
-                                            [20,14], [22,14], [23,14], [25,14],
+                                            [20,14], [22,14], [23,14], [24,14], [25,14],
                                             [26,14]]
             best_location,left,leastDamage,blocked = self.least_damage_spawn_location(game_state, scout_spawn_location_options)
 
@@ -154,8 +154,6 @@ class AlgoStrategy(gamelib.AlgoCore):
         for i in turret_locations:
             if i != dont_spawn:
                 game_state.attempt_spawn(TURRET, i)
-        for i in [[3,13],[24,13]]:
-            game_state.attempt_upgrade(i)
 
         for i in [[15,12],[12,12],[17,12],[10,12],[19,12],
                   [8,12],[21,12],[6,12],

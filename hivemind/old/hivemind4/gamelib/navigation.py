@@ -65,7 +65,8 @@ class ShortestPathFinder:
             Note that this path can change if a tower is destroyed during pathing, or if you or your enemy places structures.
 
         """
-
+        if game_state.contains_stationary_unit(start_point):
+            return
 
         #Initialize map 
         self.initialize_map(game_state)
@@ -73,8 +74,6 @@ class ShortestPathFinder:
         for location in self.game_state.game_map:
             if self.game_state.contains_stationary_unit(location):
                 self.game_map[location[0]][location[1]].blocked = True
-        if game_state.contains_stationary_unit(start_point):
-            self.game_map[start_point[0]][start_point[1]].blocked = False
         #Do pathfinding
         ideal_endpoints = self._idealness_search(start_point, end_points)
         self._validate(ideal_endpoints, end_points)
