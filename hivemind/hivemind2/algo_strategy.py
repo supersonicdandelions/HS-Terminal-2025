@@ -158,10 +158,13 @@ class AlgoStrategy(gamelib.AlgoCore):
         for i in turret_locations:
             if i != dont_spawn:
                 game_state.attempt_spawn(TURRET, i)
+        all_upgraded=True
         for i in [[3,13],[24,13],[10,13],[17,13]]:
             game_state.attempt_upgrade(i)
+            if not game_state.contains_stationary_unit(i) or not game_state.game_map[i][0].upgraded:
+                all_upgraded=False
 
-        if game_state.get_resource(SP) >= 8:
+        if all_upgraded:
             for i in [[15,12],[12,12],[17,12],[10,12],[19,12],
                     [8,12],[21,12],[6,12],
                     [15,11],[12,11],[17,11],[10,11],[19,11],
