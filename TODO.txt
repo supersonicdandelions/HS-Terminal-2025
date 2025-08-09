@@ -1,5 +1,7 @@
 TODO:
 
+fixed the blocked stuff
+
 idk what else for now
 maybe stagger scout placement?
 use supports better?
