@@ -254,7 +254,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             if not has_turret(location) or get_turret_health(location) < 30:
                 game_state.attempt_spawn(TURRET, location)
                 if location[1] <= 11: 
-                    continue
+                    continue # too low
                 if game_state.game_map.in_arena_bounds([location[0], location[1]-3]) and game_state.turn_number > 0 and game_state.get_resource(SP) >= 1:
                     game_state.attempt_spawn(TURRET, [location[0], location[1] - 1])
                     temp.append([location[0], location[1] - 1])
