@@ -127,17 +127,14 @@ class AlgoStrategy(gamelib.AlgoCore):
                     else:
                         game_state.attempt_spawn(SCOUT, [13,0],5)
                         game_state.attempt_spawn(SCOUT, [14,0],1000)
-        toUpgrade=[]
-        if game_state.turn_number>1:
-            toUpgrade=self.get_upgrade_locations(game_state,dont_spawn)
 
         # First, place basic defenses
-        self.build_defences(game_state,dont_spawn,toUpgrade)
+        self.build_defences(game_state,dont_spawn)
         # Lastly, if we have spare SP, let's build some supports
         support_locations = [[13, 2], [14, 2], [13, 3], [14, 3]]
         #game_state.attempt_spawn(SUPPORT, support_locations)
 
-    def build_defences(self, game_state,dont_spawn,toUpgrade):
+    def build_defences(self, game_state,dont_spawn):
         """
         Build basic defenses using hardcoded locations.
         Remember to defend corners and avoid placing units in the front where enemy demolishers can attack them.
@@ -163,10 +160,9 @@ class AlgoStrategy(gamelib.AlgoCore):
                 game_state.attempt_spawn(TURRET, i)
         all_upgraded=True
         for i in [[3,13],[24,13],[10,13],[17,13]]:
+            game_state.attempt_upgrade(i)
             if not game_state.contains_stationary_unit(i) or not game_state.game_map[i][0].upgraded:
                 all_upgraded=False
-        for i in toUpgrade:
-            game_state.attempt_upgrade(i)
 
         if all_upgraded:
             for i in [[15,12],[12,12],[17,12],[10,12],[19,12],
@@ -175,15 +171,6 @@ class AlgoStrategy(gamelib.AlgoCore):
                     [8,11],[21,11],[6,11]]:
                 game_state.attempt_spawn(SUPPORT, i)
                 game_state.attempt_upgrade(i)
-        else:
-            for i in [[15,12],[12,12],[17,12],[10,12],[19,12],
-                      [8,12],[21,12],[6,12],
-                      [15,11],[12,11],[17,11],[10,11],[19,11],
-                      [8,11],[21,11],[6,11]]:
-                if game_state.get_resource(SP)+BASE_STRUCTURE_POINT_INCOME>=8+4:
-                    game_state.attempt_spawn(SUPPORT, i)
-                if game_state.get_resource(SP)+BASE_STRUCTURE_POINT_INCOME>=8+4:
-                    game_state.attempt_upgrade(i)
 
         destroyed=0
         """for location in wall_locations:
@@ -205,29 +192,6 @@ class AlgoStrategy(gamelib.AlgoCore):
         # upgrade walls so they soak more damage
         if destroyed<=BASE_STRUCTURE_POINT_INCOME:
             game_state.attempt_upgrade(turret_locations)
-    def get_upgrade_locations(self,game_state,dont_spawn):
-        d={}
-        for i in range(0,7):
-            d[i]=(3,13)
-        for i in range(7,14):
-            d[i]=(10,13)
-        for i in range(14,21):
-            d[i]=(17,13)
-        for i in range(21,28):
-            d[i]=(24,13)
-        locations=set()
-        for i in [[1,15],[2,16],[3,17],[4,18],[5,19],[6,20],[7,21],[8,22],
-                  [9,23],[10,24],[11,25],[12,26],[13,27],[14,27],[15,26],
-                  [16,25],[17,24],[18,23],[19,22],[20,21],[21,20],[22,19],
-                  [23,18],[24,17],[25,16],[26,15]]:
-            if not game_state.contains_stationary_unit(i):
-                path=game_state.find_path_to_edge(i)
-                if path[-1][1]==14:
-                    locations.add(d[path[-1][0]])
-                elif dont_spawn and dont_spawn in path:
-                    locations.add(d[dont_spawn[0]])
-        return list(locations)
-
 
     def least_damage_spawn_location(self, game_state, location_options):
         damages = []
@@ -240,8 +204,6 @@ class AlgoStrategy(gamelib.AlgoCore):
                 blocked=False
                 if location[0]>2 and location[0]<25:
                     damage1-=50
-            elif location[0] not in [1,26]:
-                damage1=10000
             for path_location in path1:
                 attackers = game_state.get_attackers(path_location, 0)
                 for attacker in attackers:
@@ -255,8 +217,6 @@ class AlgoStrategy(gamelib.AlgoCore):
                 blocked=False
                 if location[0]>2 and location[0]<25:
                     damage2-=50
-            elif location[0] not in [1,26]:
-                damage2=10000
             for path_location in path2:
                 attackers = game_state.get_attackers(path_location, 0)
                 for attacker in attackers:
