@@ -58,6 +58,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.scored_on_locations = []
         self.time = 0
         self.last_enemy_hp = 30
+        self.lastMP = 0
         self.interval = 4
         self.sinceDamage = 0
         self.isWallTactic = False
@@ -78,7 +79,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         self.isRight = False
         self.centerHole = False
         self.dont_spawn = False
-
+        self.disableMiddle = False
         self.failures = 0
 
 
@@ -103,11 +104,13 @@ class AlgoStrategy(gamelib.AlgoCore):
         game_state.submit_turn()
         if (game_state.enemy_health == self.last_enemy_hp):
             self.sinceDamage += 1
-            if game_state.get_resource(MP) < 1 and self.sinceDamage > 2:
+            if self.lastMP < 1 and self.sinceDamage > 2:
                 self.failures += 1
+                self.disableMiddle = True
         else:
             self.sinceDamage = 0
         self.last_enemy_hp = game_state.enemy_health
+        self.lastMP = game_state.get_resource(MP)
 
 
     """
@@ -156,19 +159,20 @@ class AlgoStrategy(gamelib.AlgoCore):
         
         if game_state.contains_stationary_unit([check_x1, 14]):
             unit = game_state.game_map[[check_x1, 14]]
-            if unit[0].player_index == 1:  # enemy unit
+            if not unit[0].pending_removal:  # enemy unit
                 self.isWallTactic = True
                 self.isStaggerTurret = False
         elif game_state.contains_stationary_unit([check_x2, 14]) and not self.isWallTactic:
             unit = game_state.game_map[[check_x2, 14]]
-            self.isStaggerTurret = True
-            if unit[0].unit_type == WALL:
-                self.isStaggerWall = True
-        if not game_state.contains_stationary_unit([1, 14]):
+            if not unit[0].pending_removal:
+                self.isStaggerTurret = True
+                if unit[0].unit_type == WALL:
+                    self.isStaggerWall = True
+        if not game_state.contains_stationary_unit([1, 14]) and not game_state.contains_stationary_unit([1, 15]) and not game_state.contains_stationary_unit([2, 15]) and game_state.contains_stationary_unit([1, 13]):
             self.leftHit = True
         else:
             self.leftHit = False
-        if not game_state.contains_stationary_unit([26, 14]):
+        if not game_state.contains_stationary_unit([26, 14]) and not game_state.contains_stationary_unit([26, 15]) and not game_state.contains_stationary_unit([25, 15]) and game_state.contains_stationary_unit([26, 13]):
             self.rightHit = True
         else:
             self.rightHit = False
@@ -187,7 +191,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         wall_x = 0 if self.isLeft else 27
         if game_state.contains_stationary_unit([wall_x, 14]):
             unit1 = game_state.game_map[[wall_x, 14]]
-            if unit1[0].unit_type == WALL:
+            if unit1[0].unit_type == WALL and not unit1[0].pending_removal:
                 self.hasWall = True
                 self.defaultValue = 5
         if self.isStaggerTurret:
@@ -201,19 +205,22 @@ class AlgoStrategy(gamelib.AlgoCore):
             self.defaultValue += 2 * self.up_front + (self.behindTurrets + 1) // 2
         
     def determine_interval(self, game_state):
-        scout_spawn_location_options = [[13,14], [14,14], [11,14], [16,14], 
-                        [9,14], [18,14], [7,14], [20,14],
-                        [5,14], [22,14], [23,14],
-                        [1,14], [26,14]]
-        best_location,left,leastDamage,blocked = self.least_damage_spawn_location(game_state, scout_spawn_location_options)
-        if best_location != [1, 14] and best_location != [26, 14]:
-            if self.dont_spawn == False:
-                self.dont_spawn = [best_location[0], 13]
-            self.isLeft = False
-            self.isRight = False
-            self.centerHole = True
-            self.goalMP = 17
-            return
+        if not self.disableMiddle:
+            scout_spawn_location_options = [[13,14], [14,14], [11,14], [16,14], 
+                            [9,14], [18,14], [7,14], [20,14],
+                            [5,14], [22,14], [23,14],
+                            [1,14], [26,14]]
+            best_location,left,leastDamage,blocked = self.least_damage_spawn_location(game_state,   scout_spawn_location_options)
+            if best_location != [1, 14] and best_location != [26, 14]:
+                if self.dont_spawn == False:
+                    self.dont_spawn = [best_location[0], 13]
+                self.isLeft = False
+                self.isRight = False
+                self.centerHole = True
+                self.goalMP = 17
+                if game_state.enemy_health <= 12:
+                    self.goalMP = max(14, game_state.enemy_health + 5)
+                return
         self.dont_spawn = False
         self.centerHole = False
         if self.isLeft == False and self.isRight == False:
@@ -241,11 +248,14 @@ class AlgoStrategy(gamelib.AlgoCore):
     def decide_tower(self, game_state):
         # Calculate attack parameters
         if self.centerHole:
+            init = 5
+            if game_state.get_resource(MP) < 17:
+                init = 4
             if self.dont_spawn[0] <= 13:
-                game_state.attempt_spawn(SCOUT, [13, 0], 5)
+                game_state.attempt_spawn(SCOUT, [13, 0], init)
                 game_state.attempt_spawn(SCOUT, [14, 0], 999)
             else:
-                game_state.attempt_spawn(SCOUT, [14, 0], 5)
+                game_state.attempt_spawn(SCOUT, [14, 0], init)
                 game_state.attempt_spawn(SCOUT, [13, 0], 999)
             return
         self.calculate_attack_parameters(game_state)
@@ -310,6 +320,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         if (game_state.project_future_MP() < self.goalMP):
             game_state.attempt_spawn(TURRET, blockage_locations)
             game_state.attempt_spawn(TURRET, flipped_blockage_locations)
+            self.dont_spawn = False
         else:
             if self.isLeft:
                 game_state.attempt_remove(blockage_locations)
@@ -368,11 +379,11 @@ class AlgoStrategy(gamelib.AlgoCore):
             game_state.attempt_upgrade(left_turret[0])
         if self.rightHit:
             game_state.attempt_upgrade(right_turret[0])
-        
-        if game_state.get_resouce(SP) < 8:
+
+        if game_state.get_resource(SP) < 8:
             return
         for i in range(4):
-            if game_state.get_resource(SP) < 8:
+            if game_state.get_resource(SP) < 16 and (not game_state.contains_stationary_unit(left_turret[0]) or not game_state.contains_stationary_unit(right_turret[0])):
                 break
             location = support_locations[i]
             game_state.attempt_spawn(SUPPORT, location)
@@ -386,11 +397,24 @@ class AlgoStrategy(gamelib.AlgoCore):
             game_state.attempt_upgrade(left_turret)
         if self.rightHit:
             game_state.attempt_upgrade(right_turret)
-            
-        if game_state.get_resouce(SP) < 24:
+        maxunupgraded = 0
+        unupgraded = 0
+        for location in left_turret:
+            if game_state.contains_stationary_unit(location):
+                unit = game_state.game_map[location]
+                if not unit[0].upgraded:
+                    unupgraded += 1
+        unupgraded = 0
+        for location in right_turret:
+            if game_state.contains_stationary_unit(location):
+                unit = game_state.game_map[location]
+                if not unit[0].upgraded:
+                    unupgraded += 1
+        maxunupgraded = max(unupgraded, maxunupgraded)
+        if game_state.get_resource(SP) < (8 * maxunupgraded):
             return
         for location in support_locations:
-            if (game_state.get_resource(SP) >= 8):
+            if (game_state.get_resource(SP) >= (8 * maxunupgraded + 8)):
                 # Attempt to upgrade the support at the location
                 game_state.attempt_spawn(SUPPORT, [location[0], location[1]])
                 if game_state.contains_stationary_unit(location):
