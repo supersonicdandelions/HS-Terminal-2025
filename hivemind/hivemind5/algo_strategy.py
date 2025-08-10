@@ -89,28 +89,44 @@ class AlgoStrategy(gamelib.AlgoCore):
         # Now build reactive defenses based on where the enemy scored
         #self.build_reactive_defense(game_state)
         global dont_spawn
-        if game_state.get_resource(MP)<18:
+        if game_state.get_resource(MP)<17:
             dont_spawn=False
 
         if True: #game_state.turn_number % 2 == 1:
             # To simplify we will just check sending them from back left and right
             go=False
-            scout_spawn_location_options = [[x,14] for x in range(1,27)]
+            scout_spawn_location_options = [[13,14],[14,14],
+                                            [11,14],  [16,14],
+                                            [9,14],  [18,14],
+                                            [7,14],[20,14],
+                                            [5,14],  [22,14],
+                                            [4,14],  [23,14],
+                                            [2,14],  [25,14],
+                                            [1,14],[26,14]
+            ]
             best_location,left,leastDamage,blocked = self.least_damage_spawn_location(game_state, scout_spawn_location_options)
 
-            if game_state.project_future_MP(1,0)>=18 and not dont_spawn:
+            if game_state.project_future_MP(1,0)>=17 and not dont_spawn:
                 dont_spawn=[best_location[0],13]
                 game_state.attempt_remove(dont_spawn)
                 go=True
             if blocked:
                 leastDamage*=2
-            if game_state.get_resource(MP)>=18: #blocked:
-                if dont_spawn[0]>13:
-                    game_state.attempt_spawn(SCOUT, [14,0],5)
-                    game_state.attempt_spawn(SCOUT, [13,0],1000)
+            if game_state.get_resource(MP)>=17: #blocked:
+                if dont_spawn[0] in [1,26]:
+                    if dont_spawn[0]>13:
+                        game_state.attempt_spawn(SCOUT, [17,3],5)
+                        game_state.attempt_spawn(SCOUT, [13,0],1000)
+                    else:
+                        game_state.attempt_spawn(SCOUT, [10,3],5)
+                        game_state.attempt_spawn(SCOUT, [14,0],1000)
                 else:
-                    game_state.attempt_spawn(SCOUT, [13,0],5)
-                    game_state.attempt_spawn(SCOUT, [14,0],1000)
+                    if dont_spawn[0]>13:
+                        game_state.attempt_spawn(SCOUT, [14,0],5)
+                        game_state.attempt_spawn(SCOUT, [13,0],1000)
+                    else:
+                        game_state.attempt_spawn(SCOUT, [13,0],5)
+                        game_state.attempt_spawn(SCOUT, [14,0],1000)
 
         # First, place basic defenses
         self.build_defences(game_state,dont_spawn)
@@ -126,10 +142,10 @@ class AlgoStrategy(gamelib.AlgoCore):
         # Useful tool for setting up your base locations: https://www.kevinbai.design/terminal-map-maker
         # More community tools available at: https://terminal.c1games.com/rules#Download
 
-        turret_locations = [[0,13],[1,13],[2,13],[3,13],[4,13],[5,13],[6,13],[7,13],
+        turret_locations = [[0, 13], [27, 13],[1,13],[2,13],[3,13],[4,13],[5,13],[6,13],[7,13],
                             [8,13],[9,13],[10,13],[11,13],[12,13],[13,13],[14,13],
                             [15,13],[16,13],[17,13],[18,13],[19,13],[20,13],[21,13],
-                            [22,13],[23,13],[24,13],[25,13],[26,13],[27,13]
+                            [22,13],[23,13],[24,13],[25,13],[26,13]
         ]
 
         #wall_locations = [[0, 13], [27, 13]]
@@ -142,15 +158,30 @@ class AlgoStrategy(gamelib.AlgoCore):
         for i in turret_locations:
             if i != dont_spawn:
                 game_state.attempt_spawn(TURRET, i)
-
-        for i in [[13,11],[15,11],[12,11],[16,11],[11,11],[17,11],[10,11],[18,11],[9,11],[19,11],
-                  [8,11],[20,11],[7,11],[21,11],[6,11],[22,11],[5,11],[23,11],[4,11]]:
-            game_state.attempt_spawn(SUPPORT, i)
+        all_upgraded=True
+        for i in [[3,13],[24,13]]:#,[10,13],[17,13]]:
             game_state.attempt_upgrade(i)
+            if not game_state.contains_stationary_unit(i) or not game_state.game_map[i][0].upgraded:
+                all_upgraded=False
+
+        if all_upgraded:
+            for i in [[15,12],[12,12],[17,12],[10,12],[19,12],
+                    [8,12],[21,12],[6,12],
+                    [15,11],[12,11],[17,11],[10,11],[19,11],
+                    [8,11],[21,11],[6,11]]:
+                game_state.attempt_spawn(SUPPORT, i)
+                game_state.attempt_upgrade(i)
 
         destroyed=0
+        """for location in wall_locations:
+            if game_state.get_resource(SP)+BASE_STRUCTURE_POINT_INCOME>=destroyed+WALL_COST+WALL_UPGRADE_COST:
+                if game_state.contains_stationary_unit(location):
+                    unit = game_state.game_map[location][0]
+                    if 2*unit.health < unit.max_health:
+                        game_state.attempt_remove(location)
+                        destroyed+=WALL_COST+WALL_UPGRADE_COST"""
         for location in turret_locations:
-            if game_state.get_resource(SP)+BASE_STRUCTURE_POINT_INCOME>destroyed:
+            if game_state.get_resource(SP)+BASE_STRUCTURE_POINT_INCOME>=destroyed+TURRET_COST:
                 if game_state.contains_stationary_unit(location):
                     unit = game_state.game_map[location][0]
                     if 2*unit.health <= unit.max_health:
@@ -171,6 +202,10 @@ class AlgoStrategy(gamelib.AlgoCore):
             damage1 = 0
             if path1[-1][1]-path1[-1][0]==14 or path1[-1][1]+path1[-1][0]==51:
                 blocked=False
+                if location[0]>2 and location[0]<25:
+                    damage1-=50
+            elif location[0] not in [1,26]:
+                damage1=10000
             for path_location in path1:
                 attackers = game_state.get_attackers(path_location, 0)
                 for attacker in attackers:
@@ -182,6 +217,10 @@ class AlgoStrategy(gamelib.AlgoCore):
             damage2=0
             if path2[-1][1]-path2[-1][0]==14 or path2[-1][1]+path2[-1][0]==51:
                 blocked=False
+                if location[0]>2 and location[0]<25:
+                    damage2-=50
+            elif location[0] not in [1,26]:
+                damage2=10000
             for path_location in path2:
                 attackers = game_state.get_attackers(path_location, 0)
                 for attacker in attackers:
@@ -215,6 +254,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             if not game_state.contains_stationary_unit(location):
                 filtered.append(location)
         return filtered
+
 
     def on_action_frame(self, turn_string):
         """

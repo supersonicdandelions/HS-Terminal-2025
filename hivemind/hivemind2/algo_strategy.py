@@ -1,5 +1,4 @@
 
-
 import gamelib
 import random
 import math
@@ -34,6 +33,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         """
         gamelib.debug_write('Configuring your custom algo strategy...')
         self.config = config
+        global dont_spawn
         global WALL, SUPPORT, TURRET, SCOUT, DEMOLISHER, INTERCEPTOR, MP, SP
         global TURRET_COST, WALL_COST, WALL_UPGRADE_COST
         global SCOUT_HEALTH, TURRET_DAMAGE_NORMAL, TURRET_DAMAGE_UPGRADED, BASE_STRUCTURE_POINT_INCOME
@@ -50,6 +50,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         TURRET_DAMAGE_NORMAL= 3
         TURRET_DAMAGE_UPGRADED=20
         BASE_STRUCTURE_POINT_INCOME=5
+        dont_spawn=False
 
         MP = 1
         SP = 0
@@ -87,36 +88,56 @@ class AlgoStrategy(gamelib.AlgoCore):
         """
         # Now build reactive defenses based on where the enemy scored
         #self.build_reactive_defense(game_state)
-
+        global dont_spawn
+        if game_state.get_resource(MP)<17:
+            dont_spawn=False
 
         if True: #game_state.turn_number % 2 == 1:
             # To simplify we will just check sending them from back left and right
             go=False
-            scout_spawn_location_options = [[13, 0], [14, 0]]
-            #scout_spawn_location_options = [[14, 0]]
-            best_location,leastDamage,blocked = self.least_damage_spawn_location(game_state, scout_spawn_location_options)
-            if game_state.project_future_MP(1,0)>=13:
-                game_state.attempt_remove([14,13])
+            scout_spawn_location_options = [[13,14],[14,14],
+                                            [11,14],  [16,14],
+                                            [9,14],  [18,14],
+                                            [7,14],[20,14],
+                                            [5,14],  [22,14],
+                                            [4,14],  [23,14],
+                                            [2,14],  [25,14],
+                                            [1,14],[26,14]
+            ]
+            best_location,left,leastDamage,blocked = self.least_damage_spawn_location(game_state, scout_spawn_location_options)
+
+            if game_state.project_future_MP(1,0)>=17 and not dont_spawn:
+                dont_spawn=[best_location[0],13]
+                game_state.attempt_remove(dont_spawn)
                 go=True
-            else:
-                game_state.attempt_spawn(TURRET, [14, 13])
             if blocked:
                 leastDamage*=2
-            if go and game_state.get_resource(MP)>=13: #blocked:
-                if best_location==[13,0]:
-                    #game_state.attempt_spawn(SCOUT, [12, 1], int(game_state.get_resource(MP,0))//2)
-                    game_state.attempt_spawn(SCOUT, [13,0],1000)
+            if game_state.get_resource(MP)>=17: #blocked:
+                if dont_spawn[0] in [1,26]:
+                    if dont_spawn[0]>13:
+                        game_state.attempt_spawn(SCOUT, [17,3],5)
+                        game_state.attempt_spawn(SCOUT, [13,0],1000)
+                    else:
+                        game_state.attempt_spawn(SCOUT, [10,3],5)
+                        game_state.attempt_spawn(SCOUT, [14,0],1000)
                 else:
-                    #game_state.attempt_spawn(SCOUT, [15, 1], int(game_state.get_resource(MP,0))//2)
-                    game_state.attempt_spawn(SCOUT, [14,0],1000)
+                    if dont_spawn[0]>13:
+                        game_state.attempt_spawn(SCOUT, [14,0],5)
+                        game_state.attempt_spawn(SCOUT, [13,0],1000)
+                    else:
+                        game_state.attempt_spawn(SCOUT, [13,0],5)
+                        game_state.attempt_spawn(SCOUT, [14,0],1000)
+        toUpgrade=[]
+        if game_state.turn_number>1:
+            toUpgrade=self.get_upgrade_locations(game_state,dont_spawn)
 
         # First, place basic defenses
-        self.build_defences(game_state)
+        self.build_defences(game_state,dont_spawn,toUpgrade)
         # Lastly, if we have spare SP, let's build some supports
         support_locations = [[13, 2], [14, 2], [13, 3], [14, 3]]
         #game_state.attempt_spawn(SUPPORT, support_locations)
 
-    def build_defences(self, game_state):
+    def build_defences(self, game_state,dont_spawn,toUpgrade):
         """
         Build basic defenses using hardcoded locations.
         Remember to defend corners and avoid placing units in the front where enemy demolishers can attack them.
@@ -124,10 +145,10 @@ class AlgoStrategy(gamelib.AlgoCore):
         # Useful tool for setting up your base locations: https://www.kevinbai.design/terminal-map-maker
         # More community tools available at: https://terminal.c1games.com/rules#Download
 
-        turret_locations = [[0,13],[1,13],[2,13],[3,13],[4,13],[5,13],[6,13],[7,13],
-                            [8,13],[9,13],[10,13],[11,13],[12,13],[13,13],
+        turret_locations = [[0, 13], [27, 13],[1,13],[2,13],[3,13],[4,13],[5,13],[6,13],[7,13],
+                            [8,13],[9,13],[10,13],[11,13],[12,13],[13,13],[14,13],
                             [15,13],[16,13],[17,13],[18,13],[19,13],[20,13],[21,13],
-                            [22,13],[23,13],[24,13],[25,13],[26,13],[27,13]
+                            [22,13],[23,13],[24,13],[25,13],[26,13]
         ]
 
         #wall_locations = [[0, 13], [27, 13]]
@@ -137,16 +158,43 @@ class AlgoStrategy(gamelib.AlgoCore):
         #game_state.attempt_upgrade(wall_locations)
 
         # attempt_spawn will try to spawn units if we have resources, and will check if a blocking unit is already there
-        game_state.attempt_spawn(TURRET, turret_locations)
-
-        for i in [[13,11],[15,11],[12,11],[16,11],[11,11],[17,11],[10,11],[18,11],[9,11],[19,11],
-                  [8,11],[20,11],[7,11],[21,11],[6,11],[22,11],[5,11],[23,11],[4,11]]:
-            game_state.attempt_spawn(SUPPORT, i)
+        for i in turret_locations:
+            if i != dont_spawn:
+                game_state.attempt_spawn(TURRET, i)
+        all_upgraded=True
+        for i in [[3,13],[24,13],[10,13],[17,13]]:
+            if not game_state.contains_stationary_unit(i) or not game_state.game_map[i][0].upgraded:
+                all_upgraded=False
+        for i in toUpgrade:
             game_state.attempt_upgrade(i)
 
+        if all_upgraded:
+            for i in [[15,12],[12,12],[17,12],[10,12],[19,12],
+                    [8,12],[21,12],[6,12],
+                    [15,11],[12,11],[17,11],[10,11],[19,11],
+                    [8,11],[21,11],[6,11]]:
+                game_state.attempt_spawn(SUPPORT, i)
+                game_state.attempt_upgrade(i)
+        else:
+            for i in [[15,12],[12,12],[17,12],[10,12],[19,12],
+                      [8,12],[21,12],[6,12],
+                      [15,11],[12,11],[17,11],[10,11],[19,11],
+                      [8,11],[21,11],[6,11]]:
+                if game_state.get_resource(SP)+BASE_STRUCTURE_POINT_INCOME>=8+4:
+                    game_state.attempt_spawn(SUPPORT, i)
+                if game_state.get_resource(SP)+BASE_STRUCTURE_POINT_INCOME>=8+4:
+                    game_state.attempt_upgrade(i)
+
         destroyed=0
+        """for location in wall_locations:
+            if game_state.get_resource(SP)+BASE_STRUCTURE_POINT_INCOME>=destroyed+WALL_COST+WALL_UPGRADE_COST:
+                if game_state.contains_stationary_unit(location):
+                    unit = game_state.game_map[location][0]
+                    if 2*unit.health < unit.max_health:
+                        game_state.attempt_remove(location)
+                        destroyed+=WALL_COST+WALL_UPGRADE_COST"""
         for location in turret_locations:
-            if game_state.get_resource(SP)+BASE_STRUCTURE_POINT_INCOME>destroyed:
+            if game_state.get_resource(SP)+BASE_STRUCTURE_POINT_INCOME>=destroyed+TURRET_COST:
                 if game_state.contains_stationary_unit(location):
                     unit = game_state.game_map[location][0]
                     if 2*unit.health <= unit.max_health:
@@ -157,82 +205,76 @@ class AlgoStrategy(gamelib.AlgoCore):
         # upgrade walls so they soak more damage
         if destroyed<=BASE_STRUCTURE_POINT_INCOME:
             game_state.attempt_upgrade(turret_locations)
+    def get_upgrade_locations(self,game_state,dont_spawn):
+        d={}
+        for i in range(0,7):
+            d[i]=(3,13)
+        for i in range(7,14):
+            d[i]=(10,13)
+        for i in range(14,21):
+            d[i]=(17,13)
+        for i in range(21,28):
+            d[i]=(24,13)
+        locations=set()
+        for i in [[1,15],[2,16],[3,17],[4,18],[5,19],[6,20],[7,21],[8,22],
+                  [9,23],[10,24],[11,25],[12,26],[13,27],[14,27],[15,26],
+                  [16,25],[17,24],[18,23],[19,22],[20,21],[21,20],[22,19],
+                  [23,18],[24,17],[25,16],[26,15]]:
+            if not game_state.contains_stationary_unit(i):
+                path=game_state.find_path_to_edge(i)
+                if path[-1][1]==14:
+                    locations.add(d[path[-1][0]])
+                elif dont_spawn and dont_spawn in path:
+                    locations.add(d[dont_spawn[0]])
+        return list(locations)
 
-    def build_reactive_defense(self, game_state):
-        """
-        This function builds reactive defenses based on where the enemy scored on us from.
-        We can track where the opponent scored by looking at events in action frames 
-        as shown in the on_action_frame function
-        """
-        for location in self.scored_on_locations:
-            # Build turret one space above so that it doesn't block our own edge spawn locations
-            build_location = [location[0], location[1]+1]
-            game_state.attempt_spawn(TURRET, build_location)
-
-    def stall_with_interceptors(self, game_state):
-        """
-        Send out interceptors at random locations to defend our base from enemy moving units.
-        """
-        # We can spawn moving units on our edges so a list of all our edge locations
-        friendly_edges = game_state.game_map.get_edge_locations(game_state.game_map.BOTTOM_LEFT) + game_state.game_map.get_edge_locations(game_state.game_map.BOTTOM_RIGHT)
-        
-        # Remove locations that are blocked by our own structures 
-        # since we can't deploy units there.
-        deploy_locations = self.filter_blocked_locations(friendly_edges, game_state)
-        
-        # While we have remaining MP to spend lets send out interceptors randomly.
-        while game_state.get_resource(MP) >= game_state.type_cost(INTERCEPTOR)[MP] and len(deploy_locations) > 0:
-            # Choose a random deploy location.
-            deploy_index = random.randint(0, len(deploy_locations) - 1)
-            deploy_location = deploy_locations[deploy_index]
-            
-            game_state.attempt_spawn(INTERCEPTOR, deploy_location)
-            """
-            We don't have to remove the location since multiple mobile 
-            units can occupy the same space.
-            """
-
-    def demolisher_line_strategy(self, game_state):
-        """
-        Build a line of the cheapest stationary unit so our demolisher can attack from long range.
-        """
-        # First let's figure out the cheapest unit
-        # We could just check the game rules, but this demonstrates how to use the GameUnit class
-        stationary_units = [WALL, TURRET, SUPPORT]
-        cheapest_unit = WALL
-        for unit in stationary_units:
-            unit_class = gamelib.GameUnit(unit, game_state.config)
-            if unit_class.cost[game_state.MP] < gamelib.GameUnit(cheapest_unit, game_state.config).cost[game_state.MP]:
-                cheapest_unit = unit
-        cheapest_unit=TURRET  # BAD BAD BAD! We are hardcoding the cheapest unit to TURRET for this example.
-
-        # Now let's build out a line of stationary units. This will prevent our demolisher from running into the enemy base.
-        # Instead they will stay at the perfect distance to attack the front two rows of the enemy base.
-        for x in range(27, 5, -1):
-            game_state.attempt_spawn(cheapest_unit, [x, 11])
-
-        # Now spawn demolishers next to the line
-        # By asking attempt_spawn to spawn 1000 units, it will essentially spawn as many as we have resources for
-        game_state.attempt_spawn(DEMOLISHER, [22, 8], 1000)
 
     def least_damage_spawn_location(self, game_state, location_options):
         damages = []
+        left = []
         blocked=True
         for location in location_options:
-            path = game_state.find_path_to_edge(location)
-            damage = 0
-            if path[-1][1]-path[-1][0]==14 or path[-1][1]+path[-1][0]==51:
+            path1 = game_state.find_path_to_edge(location,game_state.game_map.TOP_LEFT)
+            damage1 = 0
+            if path1[-1][1]-path1[-1][0]==14 or path1[-1][1]+path1[-1][0]==51:
                 blocked=False
-            for path_location in path:
+                if location[0]>2 and location[0]<25:
+                    damage1-=50
+            elif location[0] not in [1,26]:
+                damage1=10000
+            for path_location in path1:
                 attackers = game_state.get_attackers(path_location, 0)
                 for attacker in attackers:
                     if attacker.upgraded:
-                        damage += TURRET_DAMAGE_UPGRADED
+                        damage1 += TURRET_DAMAGE_UPGRADED
                     else:
-                        damage += TURRET_DAMAGE_NORMAL
-            damages.append(damage)
+                        damage1 += TURRET_DAMAGE_NORMAL
+            path2=game_state.find_path_to_edge(location,game_state.game_map.TOP_RIGHT)
+            damage2=0
+            if path2[-1][1]-path2[-1][0]==14 or path2[-1][1]+path2[-1][0]==51:
+                blocked=False
+                if location[0]>2 and location[0]<25:
+                    damage2-=50
+            elif location[0] not in [1,26]:
+                damage2=10000
+            for path_location in path2:
+                attackers = game_state.get_attackers(path_location, 0)
+                for attacker in attackers:
+                    if attacker.upgraded:
+                        damage2 += TURRET_DAMAGE_UPGRADED
+                    else:
+                        damage2 += TURRET_DAMAGE_NORMAL
+            if damage1<damage2:
+                damages.append(damage1)
+                left.append(False)
+                gamelib.debug_write(path1)
+            else:
+                gamelib.debug_write(path2)
+                damages.append(damage2)
+                left.append(True)
+            gamelib.debug_write(location,"value",min(damage1,damage2))
         leastDamage = min(damages)
-        return (location_options[damages.index(min(damages))],leastDamage,blocked)
+        return (location_options[damages.index(min(damages))],left[damages.index(min(damages))],leastDamage,blocked)
     def detect_enemy_unit(self, game_state, unit_type=None, valid_x = None, valid_y = None):
         total_units = 0
         for location in game_state.game_map:
@@ -248,6 +290,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             if not game_state.contains_stationary_unit(location):
                 filtered.append(location)
         return filtered
+
 
     def on_action_frame(self, turn_string):
         """
