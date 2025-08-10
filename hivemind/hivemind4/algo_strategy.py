@@ -223,6 +223,8 @@ class AlgoStrategy(gamelib.AlgoCore):
             self.isRight = False
             self.centerHole = True
             self.goalMP = 17
+            if game_state.enemy_health <= 12:
+                self.goalMP = min(17, game_state.enemy_health + 5)
             return
         self.dont_spawn = False
         self.centerHole = False
@@ -251,11 +253,14 @@ class AlgoStrategy(gamelib.AlgoCore):
     def decide_tower(self, game_state):
         # Calculate attack parameters
         if self.centerHole:
+            initSpawn = 5
+            if game_state.get_resource(MP) < 17:
+                initSpawn = 4
             if self.dont_spawn[0] <= 13:
-                game_state.attempt_spawn(SCOUT, [13, 0], 5)
+                game_state.attempt_spawn(SCOUT, [13, 0], initSpawn)
                 game_state.attempt_spawn(SCOUT, [14, 0], 999)
             else:
-                game_state.attempt_spawn(SCOUT, [14, 0], 5)
+                game_state.attempt_spawn(SCOUT, [14, 0], initSpawn)
                 game_state.attempt_spawn(SCOUT, [13, 0], 999)
             self.dont_spawn= False
             return
