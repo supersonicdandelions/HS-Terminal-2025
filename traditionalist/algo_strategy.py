@@ -156,15 +156,14 @@ class AlgoStrategy(gamelib.AlgoCore):
         
         if game_state.contains_stationary_unit([check_x1, 14]):
             unit = game_state.game_map[[check_x1, 14]]
-            if not unit[0].pending_removal:  # enemy unit
+            if unit[0].player_index == 1:  # enemy unit
                 self.isWallTactic = True
                 self.isStaggerTurret = False
         elif game_state.contains_stationary_unit([check_x2, 14]) and not self.isWallTactic:
             unit = game_state.game_map[[check_x2, 14]]
-            if not unit[0].pending_removal:
-                self.isStaggerTurret = True
-                if unit[0].unit_type == WALL:
-                    self.isStaggerWall = True
+            self.isStaggerTurret = True
+            if unit[0].unit_type == WALL:
+                self.isStaggerWall = True
         if not game_state.contains_stationary_unit([1, 14]):
             self.leftHit = True
         else:
@@ -188,7 +187,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         wall_x = 0 if self.isLeft else 27
         if game_state.contains_stationary_unit([wall_x, 14]):
             unit1 = game_state.game_map[[wall_x, 14]]
-            if unit1[0].unit_type == WALL and not unit1[0].pending_removal:
+            if unit1[0].unit_type == WALL:
                 self.hasWall = True
                 self.defaultValue = 5
         if self.isStaggerTurret:
@@ -370,10 +369,10 @@ class AlgoStrategy(gamelib.AlgoCore):
         if self.rightHit:
             game_state.attempt_upgrade(right_turret[0])
         
-        if game_state.get_resource(SP) < 8:
+        if game_state.get_resouce(SP) < 8:
             return
         for i in range(4):
-            if game_state.get_resource(SP) < 16:
+            if game_state.get_resource(SP) < 8:
                 break
             location = support_locations[i]
             game_state.attempt_spawn(SUPPORT, location)
@@ -388,10 +387,10 @@ class AlgoStrategy(gamelib.AlgoCore):
         if self.rightHit:
             game_state.attempt_upgrade(right_turret)
             
-        if game_state.get_resource(SP) < 24:
+        if game_state.get_resouce(SP) < 24:
             return
         for location in support_locations:
-            if (game_state.get_resource(SP) >= 32):
+            if (game_state.get_resource(SP) >= 8):
                 # Attempt to upgrade the support at the location
                 game_state.attempt_spawn(SUPPORT, [location[0], location[1]])
                 if game_state.contains_stationary_unit(location):
