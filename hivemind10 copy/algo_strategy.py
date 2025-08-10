@@ -388,7 +388,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         if self.rightHit:
             game_state.attempt_upgrade(right_turret)
             
-        if game_state.get_resouce(SP) < 24:
+        if game_state.get_resource(SP) < 24:
             return
         for location in support_locations:
             if (game_state.get_resource(SP) >= 8):
