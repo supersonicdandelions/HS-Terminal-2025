@@ -373,7 +373,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         if game_state.get_resource(SP) < 8:
             return
         for i in range(4):
-            if game_state.get_resource(SP) < 8:
+            if game_state.get_resource(SP) < 16:
                 break
             location = support_locations[i]
             game_state.attempt_spawn(SUPPORT, location)
@@ -391,7 +391,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         if game_state.get_resource(SP) < 24:
             return
         for location in support_locations:
-            if (game_state.get_resource(SP) >= 8):
+            if (game_state.get_resource(SP) >= 32):
                 # Attempt to upgrade the support at the location
                 game_state.attempt_spawn(SUPPORT, [location[0], location[1]])
                 if game_state.contains_stationary_unit(location):
