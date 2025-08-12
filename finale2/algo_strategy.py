@@ -84,6 +84,7 @@ class AlgoStrategy(gamelib.AlgoCore):
 
 
 
+
     def on_turn(self, turn_state):
         """
         This function is called every turn with the game state wrapper as
@@ -149,20 +150,21 @@ class AlgoStrategy(gamelib.AlgoCore):
 
         if game_state.turn_number <= 5:
             self.defaultValue = 5
-        if numSpawnable <= 15.99:
-            self.defaultValue = 5
         
         # Check for enemy tactics by examining specific positions
         # Adjust x coordinates based on attack direction
         check_x1 = 1 if self.isLeft else 26
         check_x2 = 2 if self.isLeft else 25
-        
+        self.isWallTactic = False
+        self.isStaggerTurret = False
+        self.isStaggerWall = False
+
         if game_state.contains_stationary_unit([check_x1, 14]):
             unit = game_state.game_map[[check_x1, 14]]
             if not unit[0].pending_removal:  # enemy unit
                 self.isWallTactic = True
                 self.isStaggerTurret = False
-        elif game_state.contains_stationary_unit([check_x2, 14]) and not self.isWallTactic:
+        if game_state.contains_stationary_unit([check_x2, 14]) and not self.isWallTactic:
             unit = game_state.game_map[[check_x2, 14]]
             if not unit[0].pending_removal:
                 self.isStaggerTurret = True
@@ -176,7 +178,7 @@ class AlgoStrategy(gamelib.AlgoCore):
             self.rightHit = True
         else:
             self.rightHit = False
-        
+
         # Check for upgraded turrets from the enemy
         for x in range(0, 5):
             for y in range(14, 16):
@@ -188,6 +190,7 @@ class AlgoStrategy(gamelib.AlgoCore):
                             self.up_front += 1
                         else:
                             self.behindTurrets += 1
+
         wall_x = 0 if self.isLeft else 27
         if game_state.contains_stationary_unit([wall_x, 14]):
             unit1 = game_state.game_map[[wall_x, 14]]
@@ -211,7 +214,7 @@ class AlgoStrategy(gamelib.AlgoCore):
                             [5,14], [22,14], [23,14],
                             [1,14], [26,14]]
             best_location,left,leastDamage,blocked = self.least_damage_spawn_location(game_state,   scout_spawn_location_options)
-            if best_location != [1, 14] and best_location != [26, 14]:
+            if best_location != [1, 14] and best_location != [26, 14] and game_state.enemy_health > 12:
                 if self.dont_spawn == False:
                     self.dont_spawn = [best_location[0], 13]
                 self.isLeft = False
@@ -242,7 +245,7 @@ class AlgoStrategy(gamelib.AlgoCore):
         minMP += self.up_front + (self.behindTurrets + 1) // 2
         if minMP > 20:
             minMP = self.defaultValue + 12
-        minMP += 2 * self.failures
+        minMP += 3 * self.failures
         self.goalMP = minMP
         
     def decide_tower(self, game_state):
@@ -272,6 +275,8 @@ class AlgoStrategy(gamelib.AlgoCore):
             game_state.attempt_spawn(SCOUT, [spawn_x, 1], initSpawn)
             game_state.attempt_spawn(SCOUT, [center_value, 0], 999)
         else:
+            spawn_x = 12 if self.isLeft else 27 - 12
+            game_state.attempt_spawn(SCOUT, [spawn_x, 1], initSpawn)
             game_state.attempt_spawn(SCOUT, [center_value, 0], 999)
         self.isLeft = random.choice([True, False])
 
@@ -340,15 +345,38 @@ class AlgoStrategy(gamelib.AlgoCore):
             self.turret_locations.append([3, 12])
             self.turret_locations.append([4, 12])
 
+        # check for holes
+        if game_state.turn_number > 3:
+            for x in range(5, 23):
+                hole = True
+                for y in range(14, 27):
+                    if game_state.contains_stationary_unit([x, y]):
+                        hole = False
+                        break
+                if hole:
+                    if self.dont_spawn == False or x != self.dont_spawn[0] or game_state.project_future_MP() < self.goalMP:
+                        game_state.attempt_spawn(TURRET, [x, 12])
+                        if not game_state.contains_stationary_unit([x, 11]):
+                            game_state.attempt_spawn(TURRET, [x, 11])
+                            game_state.attempt_upgrade([x, 11])
+
+                    if self.dont_spawn == False or (x - 1) != self.dont_spawn[0] or game_state.project_future_MP() < self.goalMP:
+                        game_state.attempt_spawn(TURRET, [x - 1, 12])
+                        game_state.attempt_spawn(TURRET, [x - 1, 11])
+                    
+                    if self.dont_spawn == False or (x + 1) != self.dont_spawn[0] or game_state.project_future_MP() < self.goalMP:
+                        game_state.attempt_spawn(TURRET, [x + 1, 12])
+                        game_state.attempt_spawn(TURRET, [x + 1, 11])
+
         temp = self.turret_locations.copy()
         for location in self.turret_locations:
             if not has_turret(location) or get_turret_health(location) < 30:
                 if game_state.project_future_MP() >= self.goalMP and self.dont_spawn != False and self.dont_spawn[0] == location[0]:
                     continue # skip
                 game_state.attempt_spawn(TURRET, location)
-                if location[1] <= 11: 
+                if location[1] <= 12: 
                     continue # too low
-                if game_state.game_map.in_arena_bounds([location[0], location[1]-3]) and game_state.turn_number > 0 and game_state.get_resource(SP) >= 1:
+                if game_state.game_map.in_arena_bounds([location[0], location[1]-3]) and game_state.turn_number > 2 and game_state.get_resource(SP) >= 1:
                     game_state.attempt_spawn(TURRET, [location[0], location[1] - 1])
                     temp.append([location[0], location[1] - 1])
         self.turret_locations = temp.copy()
